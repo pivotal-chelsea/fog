@@ -5,16 +5,16 @@ module Fog
   module Storage
     class HP < Fog::Service
 
-      requires    :hp_secret_key, :hp_account_id, :hp_tenant_id
-      recognizes  :hp_auth_uri, :hp_servicenet, :hp_cdn_ssl, :hp_cdn_uri, :persistent, :connection_options, :hp_use_upass_auth_style, :hp_auth_version
+      requires :hp_secret_key, :hp_account_id, :hp_tenant_id
+      recognizes :hp_auth_uri, :hp_servicenet, :hp_cdn_ssl, :hp_cdn_uri, :persistent, :connection_options, :hp_use_upass_auth_style, :hp_auth_version
 
-      secrets     :hp_secret_key
+      secrets :hp_secret_key
 
       model_path 'fog/hp/models/storage'
-      model       :directory
-      collection  :directories
-      model       :file
-      collection  :files
+      model :directory
+      collection :directories
+      model :file
+      collection :files
 
       request_path 'fog/hp/requests/storage'
       request :delete_container
@@ -33,13 +33,13 @@ module Fog
         def cdn
           unless @hp_cdn_uri.nil?
             @cdn ||= Fog::CDN.new(
-              :provider       => 'HP',
-              :hp_account_id  => @hp_account_id,
-              :hp_secret_key  => @hp_secret_key,
-              :hp_auth_uri    => @hp_auth_uri,
-              :hp_cdn_uri     => @hp_cdn_uri,
-              :hp_tenant_id   => @hp_tenant_id,
-              :connection_options => @connection_options
+                :provider => 'HP',
+                :hp_account_id => @hp_account_id,
+                :hp_secret_key => @hp_secret_key,
+                :hp_auth_uri => @hp_auth_uri,
+                :hp_cdn_uri => @hp_cdn_uri,
+                :hp_tenant_id => @hp_tenant_id,
+                :connection_options => @connection_options
             )
             if @cdn.enabled?
               @cdn
@@ -57,14 +57,14 @@ module Fog
           header = {}
           case acl
             when "private"
-              header['X-Container-Read']  = ""
+              header['X-Container-Read'] = ""
               header['X-Container-Write'] = ""
             when "public-read"
-              header['X-Container-Read']  = ".r:*,.rlistings"
+              header['X-Container-Read'] = ".r:*,.rlistings"
             when "public-write"
               header['X-Container-Write'] = "*"
             when "public-read-write"
-              header['X-Container-Read']  = ".r:*,.rlistings"
+              header['X-Container-Read'] = ".r:*,.rlistings"
               header['X-Container-Write'] = "*"
           end
           header
@@ -86,6 +86,7 @@ module Fog
 
       class Mock
         include Utils
+
         def self.acls(type)
           type
         end
@@ -93,13 +94,13 @@ module Fog
         def self.data
           @data ||= Hash.new do |hash, key|
             hash[key] = {
-              :acls => {
-                :container => {},
-                :object => {}
-              },
-              :containers => {}
+                :acls => {
+                    :container => {},
+                    :object => {}
+                },
+                :containers => {}
             }
-            end
+          end
         end
 
         def self.reset
@@ -130,37 +131,23 @@ module Fog
           require 'mime/types'
           @hp_secret_key = options[:hp_secret_key]
           @hp_account_id = options[:hp_account_id]
-          @hp_auth_uri   = options[:hp_auth_uri]
-          @hp_cdn_ssl    = options[:hp_cdn_ssl]
+          @hp_auth_uri = options[:hp_auth_uri]
+          @hp_cdn_ssl = options[:hp_cdn_ssl]
           @connection_options = options[:connection_options] || {}
           ### Set an option to use the style of authentication desired; :v1 or :v2 (default)
-          auth_version = options[:hp_auth_version] || :v2
+          @auth_version = options[:hp_auth_version] || :v2
           ### Pass the service type for object storage to the authentication call
           options[:hp_service_type] = "object-store"
           @hp_tenant_id = options[:hp_tenant_id]
 
-          ### Make the authentication call
-          if (auth_version == :v2)
-            # Call the control services authentication
-            credentials = Fog::HP.authenticate_v2(options, @connection_options)
-            # the CS service catalog returns the cdn endpoint
-            @hp_storage_uri = credentials[:endpoint_url]
-            @hp_cdn_uri  = credentials[:cdn_endpoint_url]
-          else
-            # Call the legacy v1.0/v1.1 authentication
-            credentials = Fog::HP.authenticate_v1(options, @connection_options)
-            # the user sends in the cdn endpoint
-            @hp_storage_uri = options[:hp_auth_uri]
-            @hp_cdn_uri  = options[:hp_cdn_uri]
-          end
+          @options = options
 
-          @auth_token = credentials[:auth_token]
+          authenticate
 
-          uri = URI.parse(@hp_storage_uri)
-          @host   = options[:hp_servicenet] == true ? "snet-#{uri.host}" : uri.host
-          @path   = uri.path
+          @host = options[:hp_servicenet] == true ? "snet-#{uri.host}" : uri.host
+          @path = uri.path
           @persistent = options[:persistent] || false
-          @port   = uri.port
+          @port = uri.port
           @scheme = uri.scheme
           Excon.ssl_verify_peer = false if options[:hp_servicenet] == true
 
@@ -174,20 +161,28 @@ module Fog
         def request(params, parse_json = true, &block)
           begin
             response = @connection.request(params.merge!({
-              :headers  => {
-                'Content-Type' => 'application/json',
-                'X-Auth-Token' => @auth_token
-              }.merge!(params[:headers] || {}),
-              :host     => @host,
-              :path     => "#{@path}/#{params[:path]}",
-            }), &block)
+                                                             :headers => {
+                                                                 'Content-Type' => 'application/json',
+                                                                 'X-Auth-Token' => @auth_token
+                                                             }.merge!(params[:headers] || {}),
+                                                             :host => @host,
+                                                             :path => "#{@path}/#{params[:path]}",
+                                                         }), &block)
+          rescue Excon::Errors::Unauthorized => error
+            if error.response.body != 'Bad username or password' # token expiration
+              @hp_must_reauthenticate = true
+              authenticate
+              retry
+            else # bad credentials
+              raise error
+            end
           rescue Excon::Errors::HTTPStatusError => error
             raise case error
-            when Excon::Errors::NotFound
-              Fog::Storage::HP::NotFound.slurp(error)
-            else
-              error
-            end
+                    when Excon::Errors::NotFound
+                      Fog::Storage::HP::NotFound.slurp(error)
+                    else
+                      error
+                  end
           end
           if !response.body.empty? && parse_json && response.headers['Content-Type'] =~ %r{application/json}
             response.body = Fog::JSON.decode(response.body)
@@ -195,6 +190,29 @@ module Fog
           response
         end
 
+        def authenticate
+          if @hp_must_reauthenticate || @auth_token.nil?
+
+            ### Make the authentication call
+            if (@auth_version == :v2)
+              # Call the control services authentication
+              credentials = Fog::HP.authenticate_v2(@options, @connection_options)
+              # the CS service catalog returns the cdn endpoint
+              @hp_storage_uri = credentials[:endpoint_url]
+              @hp_cdn_uri = credentials[:cdn_endpoint_url]
+            else
+              # Call the legacy v1.0/v1.1 authentication
+              credentials = Fog::HP.authenticate_v1(@options, @connection_options)
+              # the user sends in the cdn endpoint
+              @hp_storage_uri = @options[:hp_auth_uri]
+              @hp_cdn_uri = @options[:hp_cdn_uri]
+            end
+
+            @auth_token = credentials[:auth_token]
+
+            @hp_storage_uri = URI.parse(credentials['X-Storage-Url'])
+          end
+        end
       end
     end
   end
