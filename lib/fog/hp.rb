@@ -151,6 +151,8 @@ module Fog
 
       body = Fog::JSON.decode(response.body)
 
+      File.open('/tmp/fogbody.txt', 'w') {|f| f.write(body)}
+
       ### fish out auth_token and endpoint for the service
       auth_token = body['access']['token']['id']
       endpoint_url = get_endpoint_from_catalog(body['access']['serviceCatalog'], @hp_service_type, @hp_avl_zone)
