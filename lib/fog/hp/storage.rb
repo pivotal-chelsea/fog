@@ -128,9 +128,6 @@ module Fog
         attr_reader :hp_cdn_ssl
 
         def initialize(options={})
-
-          puts "################### IN INIT #################"
-
           require 'mime/types'
           @hp_secret_key = options[:hp_secret_key]
           @hp_account_id = options[:hp_account_id]
@@ -146,7 +143,6 @@ module Fog
           @options = options
 
           authenticate
-          @auth_token = '123'
 
           @host = options[:hp_servicenet] == true ? "snet-#{uri.host}" : uri.host
           @path = uri.path
@@ -196,10 +192,6 @@ module Fog
         end
 
         def authenticate
-
-          puts "***********  IN AUTH  ************"
-          File.open('/tmp/hackytest.txt', 'w') {|f| f.write("start of auth: #{@auth_token}")}
-
           if @hp_must_reauthenticate || @auth_token.nil?
 
             ### Make the authentication call
@@ -221,9 +213,6 @@ module Fog
 
             @hp_storage_uri = URI.parse(credentials['X-Storage-Url'])
           end
-
-          File.open('/tmp/hackytest.txt', 'w') {|f| f.write("end of auth: #{@auth_token}")}
-
         end
       end
     end
