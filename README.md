@@ -10,7 +10,7 @@ fog is the Ruby cloud computing library, top to bottom:
 
     sudo gem install fog
 
-Now type `fog` to try stuff, confident that fog will let you know what to do. 
+Now type `fog` to try stuff, confident that fog will let you know what to do.
 Here is an example of wading through server creation for Amazon Elastic Compute Cloud:
 
     >> server = Compute[:aws].servers.create
@@ -25,7 +25,7 @@ Here is an example of wading through server creation for Amazon Elastic Compute 
 ## Collections
 
 A high level interface to each cloud is provided through collections, such as `images` and `servers`.
-You can see a list of available collections by calling `collections` on the connection object. 
+You can see a list of available collections by calling `collections` on the connection object.
 You can try it out using the `fog` command:
 
     >> Compute[:aws].collections
@@ -95,7 +95,7 @@ It will return an [excon](http://github.com/geemus/excon) response, which has `b
 
 ## Go forth and conquer
 
-Play around and use the console to explore or check out [fog.io](http://fog.io) for more details and examples. 
+Play around and use the console to explore or check out [fog.io](http://fog.io) for more details and examples.
 Once you are ready to start scripting fog, here is a quick hint on how to make connections without the command line thing to help you.
 
     # create a compute connection
@@ -150,3 +150,7 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Fork
+
+* to support reauthenticating expired HP Cloud credentials
