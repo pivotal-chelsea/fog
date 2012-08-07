@@ -144,6 +144,8 @@ module Fog
 
           authenticate
 
+          uri = URI.parse(@hp_storage_uri)
+
           @host = options[:hp_servicenet] == true ? "snet-#{uri.host}" : uri.host
           @path = uri.path
           @persistent = options[:persistent] || false
@@ -195,9 +197,11 @@ module Fog
           if @hp_must_reauthenticate || @auth_token.nil?
 
             ### Make the authentication call
-            if (@auth_version == :v2)
+            if @auth_version == :v2
+
               # Call the control services authentication
               credentials = Fog::HP.authenticate_v2(@options, @connection_options)
+
               # the CS service catalog returns the cdn endpoint
               @hp_storage_uri = credentials[:endpoint_url]
               @hp_cdn_uri = credentials[:cdn_endpoint_url]
@@ -210,8 +214,6 @@ module Fog
             end
 
             @auth_token = credentials[:auth_token]
-
-            @hp_storage_uri = URI.parse(credentials['X-Storage-Url'])
           end
         end
       end
